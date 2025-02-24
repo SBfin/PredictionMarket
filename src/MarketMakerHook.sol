@@ -192,9 +192,10 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         // Initialize the pool with a fixed amount of tokens
         // Set the hook for the pool (this contract)
         // Create YES token
+        OutcomeToken yesToken = new OutcomeToken("Market YES", "YES");
+
         OutcomeToken noToken = new OutcomeToken("Market NO", "NO");
 
-        OutcomeToken yesToken = new OutcomeToken("Market YES", "YES");
 
         // Create a pool key
         PoolKey memory poolKey = PoolKey({
