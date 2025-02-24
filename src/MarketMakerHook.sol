@@ -196,11 +196,22 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
 
         OutcomeToken noToken = new OutcomeToken("Market NO", "NO");
 
+        // make token0 the lower address
+        OutcomeToken token0;
+        OutcomeToken token1;
+        if (address(yesToken) < address(noToken)) {
+            token0 = OutcomeToken(address(yesToken));
+            token1 = OutcomeToken(address(noToken));
+        } else {
+            token0 = OutcomeToken(address(noToken));
+            token1 = OutcomeToken(address(yesToken));
+        }
+
 
         // Create a pool key
         PoolKey memory poolKey = PoolKey({
-            currency0: Currency.wrap(address(yesToken)),
-            currency1: Currency.wrap(address(noToken)),
+            currency0: Currency.wrap(address(token0)),
+            currency1: Currency.wrap(address(token1)),
             fee: 10000,
             tickSpacing: 100,
             hooks: IHooks(address(this))
