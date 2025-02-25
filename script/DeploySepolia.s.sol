@@ -25,7 +25,7 @@ import {IV4Quoter} from "@uniswap/v4-periphery/src/interfaces/IV4Quoter.sol";
 import {PoolModifyLiquidityTest} from "@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol";
 import {ViewHelper} from "../src/ViewHelper.sol";
 import {UniHelper} from "../src/UniHelper.sol";
-
+import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
 contract Deploy is Script {
 
     MarketMakerHook public hook;
@@ -40,7 +40,7 @@ contract Deploy is Script {
     address public user2;
     ViewHelper public viewHelper;
     UniHelper public uniHelper;
-
+    PoolSwapTest public poolSwapTest;
     uint256 public COLLATERAL_AMOUNT = 100 * 1e6;
 
     function setUp() public {
@@ -51,7 +51,8 @@ contract Deploy is Script {
         // Deploy Uniswap infrastructure
         manager = new PoolManager(address(this));
         console.log("Deployed PoolManager at", address(manager));
-        modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);        
+        modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);   
+        poolSwapTest = new PoolSwapTest(manager);
         oracle = new CentralizedOracle();
         quoter = new V4Quoter(manager);
         
@@ -73,7 +74,7 @@ contract Deploy is Script {
             CREATE2_DEPLOYER,
             flags,
             type(MarketMakerHook).creationCode,
-            abi.encode(manager, modifyLiquidityRouter, quoter, uniHelper)
+            abi.encode(manager, modifyLiquidityRouter, poolSwapTest, quoter, uniHelper)
         );
 
         console.log("Deploying MarketMakerHook at", hookAddress);
@@ -82,6 +83,7 @@ contract Deploy is Script {
         hook = new MarketMakerHook{salt: salt}(
             manager, 
             modifyLiquidityRouter, 
+            poolSwapTest,
             quoter,
             uniHelper
         );
@@ -110,15 +112,18 @@ contract Deploy is Script {
         console.log("Hook contract balance:", collateralToken.balanceOf(address(hook)));
         console.log("Hook contract address:", address(hook));
         console.log("Collateral token address:", address(collateralToken));
+        console.log("Deployer address:", address(vm.addr(deployerPrivateKey)));
+        console.log("msg.sender:", msg.sender);
 
         // Transfer tokens to the deployer address
         address deployer = vm.addr(deployerPrivateKey);
         collateralToken.mint(deployer, 1000000 * 10**6);
+        collateralToken.mint(msg.sender, 1000000 * 10**6);
+        console.log("Deployer balance:", collateralToken.balanceOf(deployer));
 
         // Create market
         collateralToken.approve(address(hook), type(uint256).max);
-        hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), 100);
-
+        hook.createMarketWithCollateralAndLiquidity(address(oracle), msg.sender, address(collateralToken), 100);
         // Deploy ViewHelper after hook
         viewHelper = new ViewHelper(address(hook));
 

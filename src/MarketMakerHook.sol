@@ -1,4 +1,3 @@
-
 pragma solidity ^0.8.24;
 
 import {BaseHook} from "@uniswap/v4-periphery/src/utils/BaseHook.sol";
@@ -26,6 +25,7 @@ import {LogExpMath} from "./math/LogExpMath.sol";
 import {Utils} from "./Utils.sol";
 import {IMarketMakerHook} from "./interfaces/IMarketMakerHook.sol";
 import {UniHelper} from "./UniHelper.sol";
+import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
 
 /// @title CollateralHook - Hook for collateral token management
 /// Users swap only through this hook
@@ -42,7 +42,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
     IV4Quoter public quoter;
     int24 public TICK_SPACING = 100;
     UniHelper public immutable uniHelper;
-
+    PoolSwapTest public poolSwapTest;
     // Market ID counter
     uint256 private _marketCount;
     mapping(uint256 => PoolId) private _marketPoolIds;
@@ -65,12 +65,14 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
     constructor(
         IPoolManager _poolManager,
         PoolModifyLiquidityTest _posm,
+        PoolSwapTest _poolSwapTest,
         IV4Quoter _quoter,
         UniHelper _uniHelper
     ) BaseHook(_poolManager) {
         poolm = IPoolManager(_poolManager);
         posm = PoolModifyLiquidityTest(_posm);
         quoter = IV4Quoter(_quoter);
+        poolSwapTest = PoolSwapTest(_poolSwapTest);
         uniHelper = _uniHelper;
     }
 
@@ -192,26 +194,43 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         // Initialize the pool with a fixed amount of tokens
         // Set the hook for the pool (this contract)
         // Create YES token
-        OutcomeToken yesToken = new OutcomeToken("Market YES", "YES");
-
-        OutcomeToken noToken = new OutcomeToken("Market NO", "NO");
+        bytes32 yesSalt = bytes32(uint256(1));  // Small number
+        bytes32 noSalt = bytes32(uint256(type(uint256).max));  // Very large number
+        
+        // Deploy tokens with CREATE2
+        OutcomeToken yesToken = new OutcomeToken{salt: yesSalt}("Market YES", "YES");
+        OutcomeToken noToken = new OutcomeToken{salt: noSalt}("Market NO", "NO");
+        
+        // Verify addresses - this should now passx
+        assert(address(yesToken) < address(noToken));
+        console.log("YES token address:", address(yesToken));
+        console.log("NO token address:", address(noToken));
+    
 
         // make token0 the lower address
+        assert(address(yesToken) < address(noToken));
+        /*
         OutcomeToken token0;
         OutcomeToken token1;
         if (address(yesToken) < address(noToken)) {
+            console.log("yesToken is token0");
             token0 = OutcomeToken(address(yesToken));
             token1 = OutcomeToken(address(noToken));
         } else {
+            console.log("noToken is token0");
             token0 = OutcomeToken(address(noToken));
             token1 = OutcomeToken(address(yesToken));
-        }
+        }*/
+
+        // max approve to pool manager for both tokens
+        yesToken.approve(address(poolSwapTest), type(uint256).max);
+        noToken.approve(address(poolSwapTest), type(uint256).max);
 
 
         // Create a pool key
         PoolKey memory poolKey = PoolKey({
-            currency0: Currency.wrap(address(token0)),
-            currency1: Currency.wrap(address(token1)),
+            currency0: Currency.wrap(address(yesToken)),
+            currency1: Currency.wrap(address(noToken)),
             fee: 10000,
             tickSpacing: 100,
             hooks: IHooks(address(this))
@@ -372,11 +391,28 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
 
             // For exactOut swaps, amountSpecified should be positive
             // For exactIn swaps, amountSpecified should be negative
-            BalanceDelta delta = fillSwap(
-                market.poolKey,
-                !zeroForOne,
-                -int256(uint256(oppositeTokensToMint))
-            );
+            console.log("zeroForOne: %d", zeroForOne);
+            console.log("desiredOutcomeTokens: %d", desiredOutcomeTokens);
+            IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+                zeroForOne: !zeroForOne,
+                amountSpecified: desiredOutcomeTokens,
+                sqrtPriceLimitX96: !zeroForOne
+                    ? TickMath.getSqrtPriceAtTick(TickMath.MIN_TICK) + 1
+                    : TickMath.getSqrtPriceAtTick(TickMath.MAX_TICK) - 1
+            });
+
+            // Create TestSettings struct
+            PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+                takeClaims: false,
+                settleUsingBurn: false
+            });
+
+            BalanceDelta delta = poolSwapTest.swap(
+                    market.poolKey,
+                    params,
+                    testSettings,
+                    new bytes(0)
+                );
 
             // Update collateral amount in the market
             _markets[poolId].totalCollateral += uint256(collateralNeeded);
@@ -433,13 +469,30 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
 
             // For exactOut swaps, amountSpecified should be positive
             // For exactIn swaps, amountSpecified should be negative
-            // For exactOut swaps, amountSpecified should be positive
-            // For exactIn swaps, amountSpecified should be negative
-            BalanceDelta delta = fillSwap(
-                market.poolKey,
-                zeroForOne,
-                desiredOutcomeTokens
-            );
+            console.log("zeroForOne: %d", zeroForOne);
+            console.log("desiredOutcomeTokens: %d", desiredOutcomeTokens);
+            IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: desiredOutcomeTokens,
+                sqrtPriceLimitX96: zeroForOne
+                    ? TickMath.getSqrtPriceAtTick(TickMath.MIN_TICK) + 1
+                    : TickMath.getSqrtPriceAtTick(TickMath.MAX_TICK) - 1
+            });
+
+            // Create TestSettings struct
+            PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+                takeClaims: false,
+                settleUsingBurn: false
+            });
+
+            console.log("balance of yesToken before swap:", OutcomeToken(market.yesToken).balanceOf(address(this)));
+            console.log("balance of noToken before swap:", OutcomeToken(market.noToken).balanceOf(address(this)));
+            BalanceDelta delta = poolSwapTest.swap(
+                    market.poolKey,
+                    params,
+                    testSettings,
+                    new bytes(0)
+                );
 
             // Update collateral amount in the market
             _markets[poolId].totalCollateral -= uint256(-collateralNeeded);
@@ -448,132 +501,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         }
     }
 
-    function fillSwap(
-        PoolKey memory key,
-        bool zeroForOne,
-        int256 amountIn
-    ) internal returns (BalanceDelta) {
-        console.log("--------------------------------");
-        console.log("inside fillSwap");
-        console.log("--------------------------------");
-
-        console.log("amountIn: %d", amountIn);
-        console.log("zeroForOne: %d", zeroForOne);
-
-        // Setup the swapping parameters
-        IPoolManager.SwapParams memory swapParams = IPoolManager.SwapParams({
-            zeroForOne: zeroForOne,
-            amountSpecified: amountIn,
-            // Set the price limit to be the least possible if swapping from Token 0 to Token 1
-            // or the maximum possible if swapping from Token 1 to Token 0
-            // i.e. infinite slippage allowed
-            sqrtPriceLimitX96: zeroForOne
-                ? TickMath.getSqrtPriceAtTick(TickMath.MIN_TICK) + 1
-                : TickMath.getSqrtPriceAtTick(TickMath.MAX_TICK) - 1
-        });
-
-        console.log(
-            "balance of YES hook before swap: %d",
-            IERC20(Currency.unwrap(key.currency0)).balanceOf(address(this))
-        );
-        console.log(
-            "balance of NO hook before swap: %d",
-            IERC20(Currency.unwrap(key.currency1)).balanceOf(address(this))
-        );
-
-        BalanceDelta delta = abi.decode(
-            poolm.unlock(abi.encodeCall(this._handleSwap, (key, swapParams))),
-            (BalanceDelta)
-        );
-
-        return delta;
-
-        // Flip the sign of the delta as tokens we were owed by Uniswap are represented as a negative delta change
-        /*
-        uint256 amountOfTokensReceivedFromSwap = zeroForOne
-            ? uint256(int256(-delta.amount1()))
-            : uint256(int256(-delta.amount0()));
-        */
-    }
-
-    function _handleSwap(
-        PoolKey calldata key,
-        IPoolManager.SwapParams calldata params
-    ) external returns (BalanceDelta) {
-        console.log("--------------------------------");
-        console.log("inside _handleSwap");
-        console.log("--------------------------------");
-        // Execute swap
-        BalanceDelta delta = poolm.swap(key, params, new bytes(0));
-
-        console.log("delta0", delta.amount0());
-        console.log("delta1", delta.amount1());
-        // use currency0 and currency1 to get the balance of the hook
-
-        // If delta is positive, we owe tokens TO the pool
-        // Deltas are the PoolManager's method to keep track of token amounts it needs to receive,
-        // respectively to distribute.
-        // A negative delta signals that the PoolManager is owed tokens,
-        // while a positive one expresses a token balance that needs to be paid to its user.
-        if (delta.amount0() > 0) {
-            console.log("delta.amount0() > 0");
-            poolm.take(
-                key.currency0,
-                address(this),
-                uint256(int256(delta.amount0()))
-            );
-            console.log(
-                "balance of YES (token0) hook after settle: %d",
-                IERC20(Currency.unwrap(key.currency0)).balanceOf(address(this))
-            );
-        }
-        if (delta.amount1() > 0) {
-            console.log("delta.amount1() > 0");
-            poolm.take(
-                key.currency1,
-                address(this),
-                uint256(int256(delta.amount1()))
-            );
-            console.log(
-                "balance of NO (token1) hook after settle: %d",
-                IERC20(Currency.unwrap(key.currency1)).balanceOf(address(this))
-            );
-        }
-
-        // If delta is negative, we need to take tokens FROM the pool
-        if (delta.amount0() < 0) {
-            console.log("delta.amount0() < 0");
-            poolm.sync(key.currency0);
-
-            IERC20(Currency.unwrap(key.currency0)).transfer(
-                address(poolm),
-                uint256(int256(-delta.amount0()))
-            );
-            poolm.settle();
-            console.log(
-                "balance of YES (token0) hook after settle: %d",
-                IERC20(Currency.unwrap(key.currency0)).balanceOf(address(this))
-            );
-        }
-
-        if (delta.amount1() < 0) {
-            console.log("delta.amount1() < 0");
-            poolm.sync(key.currency1);
-
-            IERC20(Currency.unwrap(key.currency1)).transfer(
-                address(poolm),
-                uint256(int256(-delta.amount1()))
-            );
-            poolm.settle();
-            console.log(
-                "balance of NO (token1) hook after settle: %d",
-                IERC20(Currency.unwrap(key.currency1)).balanceOf(address(this))
-            );
-        }
-
-        return delta;
-    }
-
+   
     //////////////////////////
     //////// Modifiers ////////
     //////////////////////////
@@ -690,4 +618,5 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
     function hasClaimed(PoolId poolId, address user) external view returns (bool) {
         return _hasClaimed[poolId][user];
     }
+
 }
