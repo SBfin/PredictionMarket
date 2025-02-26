@@ -126,6 +126,7 @@ contract Deploy is Script {
         hook.createMarketWithCollateralAndLiquidity(address(oracle), msg.sender, address(collateralToken), 100);
         // Deploy ViewHelper after hook
         viewHelper = new ViewHelper(address(hook));
+        console.log("Deployed ViewHelper at", address(viewHelper));
 
         // Use viewHelper instead of hook directly
         Market[] memory markets = viewHelper.getMarkets();
