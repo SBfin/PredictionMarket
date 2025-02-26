@@ -107,7 +107,7 @@ contract Deploy is Script {
     }
 
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("SEPOLIA_PK");
+        uint256 deployerPrivateKey = vm.envUint("ANVIL_PK");
         vm.startBroadcast(deployerPrivateKey);
 
         deployInfrastructure();
