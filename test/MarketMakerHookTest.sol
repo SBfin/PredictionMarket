@@ -45,6 +45,9 @@ contract MarketMakerHookTest is Test, Deployers {
         /// The sqrt price at which, if reached, the swap will stop executing
         uint160 sqrtPriceLimitX96;
     }
+    
+    bytes32 desc = bytes32("Test description");
+
 
     function setUp() public {
         // Deploy Uniswap v4 infrastructure
@@ -99,12 +102,12 @@ contract MarketMakerHookTest is Test, Deployers {
     }
 
     function test_createMarketWithCollateralAndLiquidity() public {
-        hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         // check if the market is created
     }
 
     function test_quoteCollateralNeededForTradeBuy() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         uint256 amountNew = 45;
         uint256 amountOld = 50;
         uint256 collateralAmount = COLLATERAL_AMOUNT;
@@ -115,7 +118,7 @@ contract MarketMakerHookTest is Test, Deployers {
     }
 
     function test_quoteCollateralNeededForTradeSell() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         uint256 amountNew = 55;
         uint256 amountOld = 50;
         uint256 collateralAmount = COLLATERAL_AMOUNT;
@@ -131,7 +134,8 @@ contract MarketMakerHookTest is Test, Deployers {
             address(oracle),
             address(this),
             address(collateralToken),
-            COLLATERAL_AMOUNT
+            COLLATERAL_AMOUNT,
+            desc
         );
 
         // Try to simulate a swap using UniHelper
@@ -153,7 +157,7 @@ contract MarketMakerHookTest is Test, Deployers {
     }
 
     function test_executeSwapBuyToken0() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         // approve hook
         collateralToken.approve(address(hook), type(uint256).max);
         // save collateral balance before swap
@@ -173,7 +177,7 @@ contract MarketMakerHookTest is Test, Deployers {
     }
 
     function test_executeSwapBuyToken1() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         collateralToken.approve(address(hook), type(uint256).max);
         // save collateral balance before swap
         uint256 collateralBalanceBefore = collateralToken.balanceOf(address(this));
@@ -191,7 +195,7 @@ contract MarketMakerHookTest is Test, Deployers {
     function test_executeSwapSellToken0() public {
         
         // buy and then sell token0
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         collateralToken.approve(address(hook), type(uint256).max);
         hook.executeSwap(poolId, true, 5e18);
 
@@ -216,7 +220,7 @@ contract MarketMakerHookTest is Test, Deployers {
 
     function test_executeSwapSellToken1() public {
         // buy and then sell token1
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         collateralToken.approve(address(hook), type(uint256).max);
         hook.executeSwap(poolId, false, 5e18);
         // approve hook to receive token1
@@ -242,7 +246,8 @@ contract MarketMakerHookTest is Test, Deployers {
             address(oracle),
             address(this),
             address(collateralToken),
-            COLLATERAL_AMOUNT
+            COLLATERAL_AMOUNT,
+            desc
         );
 
         // Get initial token values using viewHelper instead of hook
@@ -270,7 +275,7 @@ contract MarketMakerHookTest is Test, Deployers {
     }
 
     function test_getTokenValueAfterMarketCreation() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         (uint256 yesValue, uint256 noValue, uint256 yesProbability) = viewHelper.getTokenValues(poolId);
         console.log("yesValue: %d", yesValue);
         console.log("noValue: %d", noValue);
@@ -279,7 +284,7 @@ contract MarketMakerHookTest is Test, Deployers {
 
     // test claim winnings
     function test_claimWinnings() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         // Let's just do a test swap to change probabilities
         // approve collateral token 
         collateralToken.approve(address(hook), type(uint256).max);
@@ -296,7 +301,7 @@ contract MarketMakerHookTest is Test, Deployers {
 
     // test claim winnings
     function test_claimWinningsWithArbitrageurs() public {
-        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT, desc);
         // Let's just do a test swap to change probabilities
         // approve collateral token 
         collateralToken.approve(address(hook), type(uint256).max);

@@ -20,4 +20,5 @@ struct Market {
     bool outcome;
     uint256 totalCollateral;
     address collateralAddress;
+    bytes32 description;
 }

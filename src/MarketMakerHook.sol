@@ -61,7 +61,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
     error NoTokensToClaim();
     error AlreadyClaimed();
 
-    event PoolCreated(Currency indexed token0, Currency indexed token1, uint24 fee, int24 tickSpacing, PoolId poolId);
+    event PoolCreated(PoolId poolId, bytes32 description);
 
     constructor(
         IPoolManager _poolManager,
@@ -172,13 +172,15 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         address oracle,
         address creator,
         address collateralAddress,
-        uint256 collateralAmount
+        uint256 collateralAmount,
+        bytes32 description
     ) public returns (PoolId) {
         PoolId poolId = createMarketAndDepositCollateral(
             oracle,
             creator,
             collateralAddress,
-            collateralAmount
+            collateralAmount,
+            description
         );
         _addInitialOutcomeTokensLiquidity(poolId);
         return poolId;
@@ -188,12 +190,9 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         address oracle,
         address creator,
         address collateralAddress,
-        uint256 collateralAmount
+        uint256 collateralAmount,
+        bytes32 description
     ) public returns (PoolId) {
-        console.log(oracle);
-        console.log(creator);
-        console.log(collateralAddress);
-        console.log(collateralAmount);
         // Create two tokens yes and no
         // Create a pool with the two tokens
         // Initialize the pool with a fixed amount of tokens
@@ -202,11 +201,8 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         // bytes32 yesSalt = bytes32(uint256(1));  // Small number
         // bytes32 noSalt = bytes32(uint256(type(uint256).max));  // Very large number
         // Deploy tokens with CREATE2
-        console.log('outcome tokens');
         OutcomeToken yesToken = new OutcomeToken("Market YES", "YES");
         OutcomeToken noToken = new OutcomeToken("Market NO", "NO");
-        console.log('Assert1', address(yesToken) < address(noToken));
-
         
         // Verify addresses - this should now passx
         // assert(address(yesToken) < address(noToken));
@@ -279,7 +275,8 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
                 state: MarketState.Active,
                 outcome: false,
                 totalCollateral: collateralAmount,
-                collateralAddress: collateralAddress
+                collateralAddress: collateralAddress,
+                description: description
             });
         } else {
             _markets[poolId] = Market({
@@ -291,7 +288,8 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
                 state: MarketState.Active,
                 outcome: false,
                 totalCollateral: collateralAmount,
-                collateralAddress: collateralAddress
+                collateralAddress: collateralAddress,
+                description: description
             });
         }
         console.log("Market created");
@@ -301,7 +299,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         _marketCount++;
 
         // Emit an event
-        emit PoolCreated(poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing, poolId);
+        emit PoolCreated(poolId, description);
         return poolId;
     }
 
