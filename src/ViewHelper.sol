@@ -5,8 +5,9 @@ import {Market, MarketState} from "./types/MarketTypes.sol";
 import {OutcomeToken} from "./OutcomeToken.sol";
 import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {IMarketMakerHook} from "./interfaces/IMarketMakerHook.sol";
+import {Utils} from "./Utils.sol";
 
-contract ViewHelper {
+contract ViewHelper is Utils {
     IMarketMakerHook public immutable hook;
 
     constructor(address _hook) {
@@ -53,5 +54,32 @@ contract ViewHelper {
         return hook.claimedTokens(poolId);
     }
 
-    
+    function quoteCollateral(
+        PoolId poolId,
+        bool zeroForOne,
+        uint256 desiredOutcomeTokens
+    ) public view returns (int256) {
+        Market memory market = hook.markets(poolId);
+        
+        // Get current token balances
+        uint256 amountOld;
+        if (zeroForOne) {
+            amountOld = market.yesToken.totalSupply();
+        } else {
+            amountOld = market.noToken.totalSupply();
+        }
+        
+        // Calculate new amount after trade
+        uint256 amountNew = desiredOutcomeTokens > 0 
+            ? amountOld + desiredOutcomeTokens  // Buying tokens
+            : amountOld - desiredOutcomeTokens; // Selling tokens
+            
+        return quoteCollateralNeededForTrade(
+            poolId,
+            amountNew,
+            amountOld,
+            market.totalCollateral,
+            market.collateralAddress
+        );
+    }
 }

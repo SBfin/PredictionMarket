@@ -52,7 +52,6 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
 
     /// @notice Mapping to track claimed tokens (separate from liquidity tokens)
     mapping(PoolId => uint256) private _claimedTokens;
-
     error DirectSwapsNotAllowed();
     error DirectLiquidityNotAllowed();
     error NotOracle();
@@ -388,6 +387,12 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         console.log("collateralNeeded: %d", collateralNeeded);
         console.log("oppositeTokensToMint: %d", oppositeTokensToMint);
 
+        // Create TestSettings struct
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+                takeClaims: false,
+                settleUsingBurn: false
+            });
+
         // If user buys shares (collateralNeeded > 0)
         if (collateralNeeded > 0) {
             // Take collateral from user
@@ -434,12 +439,6 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
                 sqrtPriceLimitX96: !zeroForOne
                     ? TickMath.getSqrtPriceAtTick(TickMath.MIN_TICK) + 1
                     : TickMath.getSqrtPriceAtTick(TickMath.MAX_TICK) - 1
-            });
-
-            // Create TestSettings struct
-            PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
             });
 
             BalanceDelta delta = poolSwapTest.swap(
@@ -514,12 +513,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
                     : TickMath.getSqrtPriceAtTick(TickMath.MAX_TICK) - 1
             });
 
-            // Create TestSettings struct
-            PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
-                takeClaims: false,
-                settleUsingBurn: false
-            });
-
+            
             console.log("balance of yesToken before swap:", OutcomeToken(market.yesToken).balanceOf(address(this)));
             console.log("balance of noToken before swap:", OutcomeToken(market.noToken).balanceOf(address(this)));
             BalanceDelta delta = poolSwapTest.swap(
@@ -532,8 +526,12 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
             // Update collateral amount in the market
             _markets[poolId].totalCollateral -= uint256(-collateralNeeded);
 
+
             // no need to return the tokens bought to the users, the creator will redeem them
         }
+        // emit probability of YES after swap
+        emit SwapExecuted(poolId, zeroForOne, desiredOutcomeTokens, msg.sender);
+
     }
 
    

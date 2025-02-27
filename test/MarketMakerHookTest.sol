@@ -158,7 +158,13 @@ contract MarketMakerHookTest is Test, Deployers {
         collateralToken.approve(address(hook), type(uint256).max);
         // save collateral balance before swap
         uint256 collateralBalanceBefore = collateralToken.balanceOf(address(this));
+        
+        // Measure gas usage
+        uint256 gasBefore = gasleft();
         hook.executeSwap(poolId, true, 5e18);
+        uint256 gasUsed = gasBefore - gasleft();
+        console.log("Gas used for executeSwap:", gasUsed);
+
         // check collateral balance after swap
         uint256 collateralBalanceAfter = collateralToken.balanceOf(address(this));
         assert(collateralBalanceAfter < collateralBalanceBefore);
@@ -262,7 +268,14 @@ contract MarketMakerHookTest is Test, Deployers {
         // YES probability should decrease (more supply)
         assert(afterYesProbability > initialYesProbability);
     }
-    
+
+    function test_getTokenValueAfterMarketCreation() public {
+        PoolId poolId = hook.createMarketWithCollateralAndLiquidity(address(oracle), address(this), address(collateralToken), COLLATERAL_AMOUNT);
+        (uint256 yesValue, uint256 noValue, uint256 yesProbability) = viewHelper.getTokenValues(poolId);
+        console.log("yesValue: %d", yesValue);
+        console.log("noValue: %d", noValue);
+        console.log("yesProbability: %d", yesProbability);
+    }    
 
     // test claim winnings
     function test_claimWinnings() public {
