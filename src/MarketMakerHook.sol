@@ -52,7 +52,6 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
 
     /// @notice Mapping to track claimed tokens (separate from liquidity tokens)
     mapping(PoolId => uint256) private _claimedTokens;
-
     error DirectSwapsNotAllowed();
     error DirectLiquidityNotAllowed();
     error NotOracle();
@@ -492,8 +491,12 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
             // Update collateral amount in the market
             _markets[poolId].totalCollateral -= uint256(-collateralNeeded);
 
+
             // no need to return the tokens bought to the users, the creator will redeem them
         }
+        // emit probability of YES after swap
+        emit SwapExecuted(poolId, zeroForOne, desiredOutcomeTokens, msg.sender);
+
     }
 
    

@@ -104,10 +104,13 @@ contract Deploy is Script {
         collateralToken.mint(0x1AEdf1675236806beeD2c8EFa2c096DbAEb1790E, 1000000 * 10**6);
         collateralToken.mint(0x3e6Fa8E5FB81Aad585ea4597d52085cac21Ee6c1, 1000000 * 10**6);
 
+        //anvil address
+        collateralToken.mint(0x70997970C51812dc3A010C7d01b50e0d17dc79C8, 1000000 * 10**6);
+
     }
 
     function run() public {
-        uint256 deployerPrivateKey = vm.envUint("ANVIL_PK");
+        uint256 deployerPrivateKey = vm.envUint("SEPOLIA_PK");
         vm.startBroadcast(deployerPrivateKey);
 
         deployInfrastructure();

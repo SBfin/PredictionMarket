@@ -13,6 +13,8 @@ interface IMarketMakerHook {
     function claimedTokens(PoolId poolId) external view returns (uint256);
     function hasClaimed(PoolId poolId, address user) external view returns (bool);
 
+
+
     // Core functions
     function createMarketWithCollateralAndLiquidity(
         address oracle,
@@ -42,8 +44,8 @@ interface IMarketMakerHook {
         uint256 totalCollateral,
         address collateralAddress
     );
-
     event MarketResolved(PoolId indexed poolId, bool outcome);
     event MarketCancelled(PoolId indexed poolId);
     event WinningsClaimed(PoolId indexed poolId, address indexed user, uint256 amount);
+    event SwapExecuted(PoolId poolId, bool zeroForOne, int128 desiredOutcomeTokens, address sender);
 }

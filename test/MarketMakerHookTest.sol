@@ -158,7 +158,13 @@ contract MarketMakerHookTest is Test, Deployers {
         collateralToken.approve(address(hook), type(uint256).max);
         // save collateral balance before swap
         uint256 collateralBalanceBefore = collateralToken.balanceOf(address(this));
+        
+        // Measure gas usage
+        uint256 gasBefore = gasleft();
         hook.executeSwap(poolId, true, 5e18);
+        uint256 gasUsed = gasBefore - gasleft();
+        console.log("Gas used for executeSwap:", gasUsed);
+
         // check collateral balance after swap
         uint256 collateralBalanceAfter = collateralToken.balanceOf(address(this));
         assert(collateralBalanceAfter < collateralBalanceBefore);
