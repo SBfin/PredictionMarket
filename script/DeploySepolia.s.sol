@@ -42,7 +42,6 @@ contract Deploy is Script {
     UniHelper public uniHelper;
     PoolSwapTest public poolSwapTest;
     uint256 public COLLATERAL_AMOUNT = 100 * 1e6;
-    bytes32 desc = bytes32("Test description");
 
     function setUp() public {
         // Set up addresses before deployment
@@ -134,7 +133,7 @@ contract Deploy is Script {
 
         // Create market
         collateralToken.approve(address(hook), type(uint256).max);
-        hook.createMarketWithCollateralAndLiquidity(address(oracle), msg.sender, address(collateralToken), 100e6, desc);
+        hook.createMarketWithCollateralAndLiquidity(address(oracle), msg.sender, address(collateralToken), 100e6);
         // Deploy ViewHelper after hook
         viewHelper = new ViewHelper(address(hook));
         console.log("Deployed ViewHelper at", address(viewHelper));

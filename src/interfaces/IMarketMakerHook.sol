@@ -20,8 +20,7 @@ interface IMarketMakerHook {
         address oracle,
         address creator,
         address collateralAddress,
-        uint256 collateralAmount,
-        bytes32 description
+        uint256 collateralAmount
     ) external returns (PoolId);
     
     function executeSwap(

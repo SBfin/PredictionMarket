@@ -61,7 +61,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
     error NoTokensToClaim();
     error AlreadyClaimed();
 
-    event PoolCreated(PoolId poolId, bytes32 description);
+    event PoolCreated(PoolId poolId);
 
     constructor(
         IPoolManager _poolManager,
@@ -172,16 +172,12 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         address oracle,
         address creator,
         address collateralAddress,
-        uint256 collateralAmount,
-        bytes32 description
-    ) public returns (PoolId) {
+        uint256 collateralAmount    ) public returns (PoolId) {
         PoolId poolId = createMarketAndDepositCollateral(
             oracle,
             creator,
             collateralAddress,
-            collateralAmount,
-            description
-        );
+            collateralAmount        );
         _addInitialOutcomeTokensLiquidity(poolId);
         return poolId;
     }
@@ -190,8 +186,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         address oracle,
         address creator,
         address collateralAddress,
-        uint256 collateralAmount,
-        bytes32 description
+        uint256 collateralAmount
     ) public returns (PoolId) {
         // Create two tokens yes and no
         // Create a pool with the two tokens
@@ -275,8 +270,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
                 state: MarketState.Active,
                 outcome: false,
                 totalCollateral: collateralAmount,
-                collateralAddress: collateralAddress,
-                description: description
+                collateralAddress: collateralAddress
             });
         } else {
             _markets[poolId] = Market({
@@ -288,8 +282,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
                 state: MarketState.Active,
                 outcome: false,
                 totalCollateral: collateralAmount,
-                collateralAddress: collateralAddress,
-                description: description
+                collateralAddress: collateralAddress
             });
         }
         console.log("Market created");
@@ -299,7 +292,7 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         _marketCount++;
 
         // Emit an event
-        emit PoolCreated(poolId, description);
+        emit PoolCreated(poolId);
         return poolId;
     }
 
