@@ -62,6 +62,8 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
     error NoTokensToClaim();
     error AlreadyClaimed();
 
+    event PoolCreated(Currency indexed token0, Currency indexed token1, uint24 fee, int24 tickSpacing, PoolId poolId);
+
     constructor(
         IPoolManager _poolManager,
         PoolModifyLiquidityTest _posm,
@@ -189,26 +191,32 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         address collateralAddress,
         uint256 collateralAmount
     ) public returns (PoolId) {
+        console.log(oracle);
+        console.log(creator);
+        console.log(collateralAddress);
+        console.log(collateralAmount);
         // Create two tokens yes and no
         // Create a pool with the two tokens
         // Initialize the pool with a fixed amount of tokens
         // Set the hook for the pool (this contract)
         // Create YES token
-        bytes32 yesSalt = bytes32(uint256(1));  // Small number
-        bytes32 noSalt = bytes32(uint256(type(uint256).max));  // Very large number
-        
+        // bytes32 yesSalt = bytes32(uint256(1));  // Small number
+        // bytes32 noSalt = bytes32(uint256(type(uint256).max));  // Very large number
         // Deploy tokens with CREATE2
-        OutcomeToken yesToken = new OutcomeToken{salt: yesSalt}("Market YES", "YES");
-        OutcomeToken noToken = new OutcomeToken{salt: noSalt}("Market NO", "NO");
+        console.log('outcome tokens');
+        OutcomeToken yesToken = new OutcomeToken("Market YES", "YES");
+        OutcomeToken noToken = new OutcomeToken("Market NO", "NO");
+        console.log('Assert1', address(yesToken) < address(noToken));
+
         
         // Verify addresses - this should now passx
-        assert(address(yesToken) < address(noToken));
+        // assert(address(yesToken) < address(noToken));
         console.log("YES token address:", address(yesToken));
         console.log("NO token address:", address(noToken));
     
 
         // make token0 the lower address
-        assert(address(yesToken) < address(noToken));
+        // assert(address(yesToken) < address(noToken));
         /*
         OutcomeToken token0;
         OutcomeToken token1;
@@ -227,14 +235,25 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         noToken.approve(address(poolSwapTest), type(uint256).max);
 
 
+        PoolKey memory poolKey;
         // Create a pool key
-        PoolKey memory poolKey = PoolKey({
-            currency0: Currency.wrap(address(yesToken)),
-            currency1: Currency.wrap(address(noToken)),
-            fee: 10000,
-            tickSpacing: 100,
-            hooks: IHooks(address(this))
-        });
+        if (address(yesToken) < address(noToken)) {
+            poolKey = PoolKey({
+                currency0: Currency.wrap(address(yesToken)),
+                currency1: Currency.wrap(address(noToken)),
+                fee: 10000,
+                tickSpacing: 100,
+                hooks: IHooks(address(this))
+            });
+        } else {
+            poolKey = PoolKey({
+                currency0: Currency.wrap(address(noToken)),
+                currency1: Currency.wrap(address(yesToken)),
+                fee: 10000,
+                tickSpacing: 100,
+                hooks: IHooks(address(this))
+            });
+        }
 
         // transfer collateral from the msg.sender to this contract
         if (collateralAddress != address(0) && collateralAmount > 0) {
@@ -251,23 +270,39 @@ contract MarketMakerHook is BaseHook, IMarketMakerHook, Utils {
         PoolId poolId = poolKey.toId();
         console.log("fetching poolId");
         // save the market. Reverts if market already exists
-        _markets[poolId] = Market({
-            poolKey: poolKey,
-            oracle: oracle,
-            creator: creator,
-            yesToken: yesToken,
-            noToken: noToken,
-            state: MarketState.Active,
-            outcome: false,
-            totalCollateral: collateralAmount,
-            collateralAddress: collateralAddress
-        });
+        if (address(yesToken) < address(noToken)) {
+            _markets[poolId] = Market({
+                poolKey: poolKey,
+                oracle: oracle,
+                creator: creator,
+                yesToken: yesToken,
+                noToken: noToken,
+                state: MarketState.Active,
+                outcome: false,
+                totalCollateral: collateralAmount,
+                collateralAddress: collateralAddress
+            });
+        } else {
+            _markets[poolId] = Market({
+                poolKey: poolKey,
+                oracle: oracle,
+                creator: creator,
+                yesToken: noToken,
+                noToken: yesToken,
+                state: MarketState.Active,
+                outcome: false,
+                totalCollateral: collateralAmount,
+                collateralAddress: collateralAddress
+            });
+        }
         console.log("Market created");
 
         // Store poolId for index lookup
         _marketPoolIds[_marketCount] = poolId;
         _marketCount++;
 
+        // Emit an event
+        emit PoolCreated(poolKey.currency0, poolKey.currency1, poolKey.fee, poolKey.tickSpacing, poolId);
         return poolId;
     }
 
